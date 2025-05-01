@@ -1,88 +1,125 @@
 import streamlit as st
-from PIL import Image, ImageEnhance, ImageFilter, ImageOps
+from PIL import Image, ImageEnhance, ImageOps, ImageFilter
 import io
 
-st.set_page_config(page_title="Chỉnh sửa ảnh", layout="centered")
+# Khởi tạo session state
+if 'history' not in st.session_state:
+    st.session_state.history = []
+if 'current_image' not in st.session_state:
+    st.session_state.current_image = None
+
 st.title("🖼️ Ứng dụng chỉnh sửa ảnh")
 
-# Khởi tạo session state
-if "image" not in st.session_state:
-    st.session_state.image = None
-if "history" not in st.session_state:
-    st.session_state.history = []
-
-# Tải ảnh lên
-uploaded_file = st.file_uploader("📤 Tải ảnh lên", type=["png", "jpg", "jpeg"])
+# Upload ảnh
+uploaded_file = st.file_uploader("📤 Tải ảnh lên", type=['jpg', 'jpeg', 'png'])
 if uploaded_file:
-    img = Image.open(uploaded_file).convert("RGB")
-    st.session_state.image = img.copy()
-    st.session_state.history = [img.copy()]
-
-# Hàm cập nhật ảnh
-def update_image(new_img):
-    st.session_state.image = new_img.convert("RGB")
-    st.session_state.history.append(new_img.copy())
+    image = Image.open(uploaded_file).convert("RGB")
+    st.session_state.history = [image.copy()]
+    st.session_state.current_image = image.copy()
 
 # Hiển thị ảnh hiện tại
-if st.session_state.image:
-    st.image(st.session_state.image, caption="Ảnh hiện tại", use_column_width=True)
+if st.session_state.current_image:
+    st.image(st.session_state.current_image, caption="Ảnh hiện tại", use_column_width=True)
 
-    # Các nút chỉnh sửa
+    st.subheader("✨ Chức năng chỉnh sửa")
+
     col1, col2, col3 = st.columns(3)
+
     with col1:
+        if st.button("🔁 Lật ngang"):
+            img = st.session_state.current_image.transpose(Image.FLIP_LEFT_RIGHT)
+            st.session_state.history.append(img)
+            st.session_state.current_image = img
+
+        if st.button("🔄 Lật dọc"):
+            img = st.session_state.current_image.transpose(Image.FLIP_TOP_BOTTOM)
+            st.session_state.history.append(img)
+            st.session_state.current_image = img
+
         if st.button("🌑 Trắng đen"):
-            update_image(st.session_state.image.convert("L"))
-        if st.button("🌫️ Làm mờ"):
-            update_image(st.session_state.image.filter(ImageFilter.GaussianBlur(5)))
-        if st.button("↔️ Lật ngang"):
-            update_image(st.session_state.image.transpose(Image.FLIP_LEFT_RIGHT))
-        if st.button("↕️ Lật dọc"):
-            update_image(st.session_state.image.transpose(Image.FLIP_TOP_BOTTOM))
+            img = st.session_state.current_image.convert("L").convert("RGB")
+            st.session_state.history.append(img)
+            st.session_state.current_image = img
+
+        if st.button("💡 Tăng sáng"):
+            enhancer = ImageEnhance.Brightness(st.session_state.current_image)
+            img = enhancer.enhance(1.5)
+            st.session_state.history.append(img)
+            st.session_state.current_image = img
+
     with col2:
-        if st.button("🎞️ Vintage"):
-            gray = st.session_state.image.convert("L")
-            update_image(ImageOps.colorize(gray, "#704214", "#C0C0C0"))
-        if st.button("❄️ Lạnh"):
-            enhancer = ImageEnhance.Color(st.session_state.image)
-            update_image(enhancer.enhance(0.5))
-        if st.button("🔥 Ấm"):
-            enhancer = ImageEnhance.Color(st.session_state.image)
-            update_image(enhancer.enhance(1.5))
-        if st.button("☀️ Tăng sáng"):
-            enhancer = ImageEnhance.Brightness(st.session_state.image)
-            update_image(enhancer.enhance(1.5))
+        if st.button("📐 Xoay 90°"):
+            img = st.session_state.current_image.rotate(90, expand=True)
+            st.session_state.history.append(img)
+            st.session_state.current_image = img
+
+        if st.button("🔲 Cắt ảnh"):
+            w, h = st.session_state.current_image.size
+            img = st.session_state.current_image.crop((w//4, h//4, 3*w//4, 3*h//4))
+            st.session_state.history.append(img)
+            st.session_state.current_image = img
+
+        if st.button("🎨 Vintage"):
+            img = ImageOps.colorize(st.session_state.current_image.convert("L"), "#704214", "#C0C0C0")
+            st.session_state.history.append(img)
+            st.session_state.current_image = img
+
+        if st.button("📸 Tăng tương phản"):
+            enhancer = ImageEnhance.Contrast(st.session_state.current_image)
+            img = enhancer.enhance(1.5)
+            st.session_state.history.append(img)
+            st.session_state.current_image = img
+
     with col3:
-        if st.button("🎚️ Tăng tương phản"):
-            enhancer = ImageEnhance.Contrast(st.session_state.image)
-            update_image(enhancer.enhance(1.5))
-        if st.button("🔎 Làm nét"):
-            update_image(st.session_state.image.filter(ImageFilter.UnsharpMask(radius=2, percent=150, threshold=3)))
-        if st.button("🔄 Xoay 90°"):
-            update_image(st.session_state.image.rotate(90, expand=True))
-        if st.button("✂️ Cắt ảnh"):
-            w, h = st.session_state.image.size
-            update_image(st.session_state.image.crop((w//4, h//4, w*3//4, h*3//4)))
+        if st.button("🔍 Làm nét"):
+            img = st.session_state.current_image.filter(ImageFilter.UnsharpMask(radius=2, percent=150, threshold=3))
+            st.session_state.history.append(img)
+            st.session_state.current_image = img
 
-    # Tách kênh màu
-    st.write("🎨 **Tách kênh màu RGB:**")
-    channel = st.radio("Chọn kênh", ("R", "G", "B"), horizontal=True)
+        if st.button("💧 Làm mờ"):
+            img = st.session_state.current_image.filter(ImageFilter.GaussianBlur(2))
+            st.session_state.history.append(img)
+            st.session_state.current_image = img
+
+        if st.button("❄️ Lạnh"):
+            enhancer = ImageEnhance.Color(st.session_state.current_image)
+            img = enhancer.enhance(0.5)
+            st.session_state.history.append(img)
+            st.session_state.current_image = img
+
+        if st.button("🔥 Ấm"):
+            enhancer = ImageEnhance.Color(st.session_state.current_image)
+            img = enhancer.enhance(1.5)
+            st.session_state.history.append(img)
+            st.session_state.current_image = img
+
+    # Tách kênh màu RGB
+    st.subheader("🌈 Tách kênh màu RGB")
+    channel = st.radio("Chọn kênh màu muốn tách:", ["Red", "Green", "Blue"])
     if st.button("Tách kênh"):
-        r, g, b = st.session_state.image.split()
-        if channel == "R":
-            merged = Image.merge("RGB", (r, Image.new("L", r.size), Image.new("L", r.size)))
-        elif channel == "G":
-            merged = Image.merge("RGB", (Image.new("L", g.size), g, Image.new("L", g.size)))
+        r, g, b = st.session_state.current_image.split()
+        if channel == "Red":
+            img = Image.merge("RGB", (r, Image.new("L", r.size), Image.new("L", r.size)))
+        elif channel == "Green":
+            img = Image.merge("RGB", (Image.new("L", g.size), g, Image.new("L", g.size)))
         else:
-            merged = Image.merge("RGB", (Image.new("L", b.size), Image.new("L", b.size), b))
-        update_image(merged)
+            img = Image.merge("RGB", (Image.new("L", b.size), Image.new("L", b.size), b))
+        st.session_state.history.append(img)
+        st.session_state.current_image = img
 
-    # Quay lại thao tác trước
-    if len(st.session_state.history) > 1:
-        if st.button("↩️ Quay lại"):
+    # Undo
+    if st.button("↩️ Quay lại thao tác trước"):
+        if len(st.session_state.history) > 1:
             st.session_state.history.pop()
-            st.session_state.image = st.session_state.history[-1]
+            st.session_state.current_image = st.session_state.history[-1]
+        else:
+            st.warning("Không còn thao tác trước đó.")
 
-    # Tải ảnh
+    # Xem ảnh hiện tại
+    if st.button("👁️ Xem ảnh hiện tại"):
+        st.image(st.session_state.current_image, caption="Ảnh hiện tại", use_column_width=True)
+
+    # Tải ảnh xuống
     img_bytes = io.BytesIO()
-    st.session_state.image.save(img_bytes, format="PNG")
-    st.download_button("📥 Tải ảnh về", data=img_bytes.getvalue(), file_name="edited.png", mime="image/png")
+    st.session_state.current_image.save(img_bytes, format='PNG')
+    st.download_button("📥 Tải ảnh xuống", data=img_bytes.getvalue(), file_name="edited_image.png", mime="image/png")
