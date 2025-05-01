@@ -93,5 +93,5 @@ if uploaded_file:
     st.download_button("Tải ảnh PNG", data=img_bytes.getvalue(), file_name="edited_image.png", mime="image/png")
 
     # Nút hoàn tác
-    if st.button("🔄 Đặt lại ảnh gốc"):
+    if st.button("🔄 Quay lại thao tác trước"):
         st.session_state.edited_image = image.copy()
